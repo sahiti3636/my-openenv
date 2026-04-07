@@ -1,0 +1,45 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+*.egg
+*.egg-info/
+dist/
+build/
+.eggs/
+*.whl
+
+# Virtual environments
+env/
+venv/
+.venv/
+ENV/
+
+# Environment variables
+.env
+.env.*
+
+# macOS
+.DS_Store
+.AppleDouble
+.LSOverride
+
+# Editors
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# Pytest / coverage
+.pytest_cache/
+.coverage
+htmlcov/
+*.log
+
+# Outputs / generated files
+outputs/
+
+# uv lock (optional — remove this line if you want to commit it)
+# uv.lock
