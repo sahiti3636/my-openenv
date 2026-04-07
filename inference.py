@@ -433,7 +433,9 @@ def main() -> int:
 
         return 0
 
-    except Exception:
+    except Exception as e:
+        import traceback
+        traceback.print_exc()
         return 1
 
 

@@ -181,6 +181,19 @@ class ISSEnvironment:
             raise RuntimeError("Call reset() before state().")
         return self._state.model_dump()
 
+    # Async wrappers required by openenv web interface
+    async def reset_async(self, episode_id: str = "audit_001", *args, **kwargs) -> Observation:
+        """Async wrapper for reset."""
+        return self.reset(episode_id=episode_id)
+
+    async def step_async(self, action: Action, *args, **kwargs) -> tuple[Observation, Reward, bool, dict]:
+        """Async wrapper for step."""
+        return self.step(action)
+
+    async def state_async(self, *args, **kwargs) -> dict:
+        """Async wrapper for state."""
+        return self.state()
+
     # ------------------------------------------------------------------
     # Helpers
     # ------------------------------------------------------------------
