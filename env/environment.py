@@ -34,9 +34,18 @@ class ISSEnvironment:
     # Public API
     # ------------------------------------------------------------------
 
-    def reset(self, episode_id: str) -> Observation:
-        """Load episode JSON and return the initial Observation."""
-        episode_path = _EPISODES_DIR / f"{episode_id}.json"
+    def reset(self, episode_id: str = "audit_001", task_id: str | None = None) -> Observation:
+        """Load episode JSON and return the initial Observation.
+
+        Supports both `episode_id` and `task_id` naming used by validators/clients.
+        """
+        selected_episode = task_id or episode_id or "audit_001"
+        episode_path = _EPISODES_DIR / f"{selected_episode}.json"
+        if not episode_path.exists():
+            available = sorted(p.stem for p in _EPISODES_DIR.glob("*.json"))
+            raise ValueError(
+                f"Unknown episode_id '{selected_episode}'. Available episodes: {available}"
+            )
         with episode_path.open() as f:
             data = json.load(f)
 
@@ -71,7 +80,7 @@ class ISSEnvironment:
         max_turns: int = data.get("max_turns", 6)
 
         obs = Observation(
-            episode_id=episode_id,
+            episode_id=selected_episode,
             episode_type=data["episode_type"],
             mission_context=data["mission_context"],
             timestep=0,
@@ -87,7 +96,7 @@ class ISSEnvironment:
         )
 
         self._state = EnvironmentState(
-            episode_id=episode_id,
+            episode_id=selected_episode,
             episode_type=data["episode_type"],
             current_observation=obs,
             object_registry=object_registry,
@@ -182,12 +191,27 @@ class ISSEnvironment:
         return self._state.model_dump()
 
     # Async wrappers required by openenv web interface
-    async def reset_async(self, episode_id: str = "audit_001", *args, **kwargs) -> Observation:
-        """Async wrapper for reset."""
-        return self.reset(episode_id=episode_id)
+    async def reset_async(self, episode_id: str | dict | None = None, *args, **kwargs) -> Observation:
+        """Async wrapper for reset.
 
-    async def step_async(self, action: Action, *args, **kwargs) -> tuple[Observation, Reward, bool, dict]:
+        Accepts either:
+        - reset_async("audit_001")
+        - reset_async(episode_id="audit_001")
+        - reset_async(task_id="audit_001")
+        - reset_async({"episode_id": "audit_001"}) / {"task_id": "audit_001"}
+        """
+        if isinstance(episode_id, dict):
+            payload = episode_id
+            selected = payload.get("episode_id") or payload.get("task_id") or kwargs.get("episode_id") or kwargs.get("task_id")
+            return self.reset(episode_id=selected or "audit_001")
+
+        selected = episode_id or kwargs.get("episode_id") or kwargs.get("task_id") or "audit_001"
+        return self.reset(episode_id=selected)
+
+    async def step_async(self, action: Action | dict, *args, **kwargs) -> tuple[Observation, Reward, bool, dict]:
         """Async wrapper for step."""
+        if isinstance(action, dict):
+            action = Action(**action)
         return self.step(action)
 
     async def state_async(self, *args, **kwargs) -> dict:
