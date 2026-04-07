@@ -34,7 +34,13 @@ class ISSEnvironment:
     # Public API
     # ------------------------------------------------------------------
 
-    def reset(self, episode_id: str = "audit_001", task_id: str | None = None) -> Observation:
+    def reset(
+        self,
+        seed: int | None = None,
+        episode_id: str = "audit_001",
+        task_id: str | None = None,
+        **kwargs,
+    ) -> Observation:
         """Load episode JSON and return the initial Observation.
 
         Supports both `episode_id` and `task_id` naming used by validators/clients.
@@ -115,8 +121,8 @@ class ISSEnvironment:
 
         return obs
 
-    def step(self, action: Action) -> tuple[Observation, Reward, bool, dict]:
-        """Apply an action and return (obs, reward, done, info)."""
+    def step(self, action: Action, timeout_s: float | None = None, **kwargs) -> Observation:
+        """Apply an action and return an OpenEnv-compatible Observation."""
         if self._state is None:
             raise RuntimeError("Call reset() before step().")
         if self._state.done:
@@ -181,9 +187,16 @@ class ISSEnvironment:
             "turns_remaining": obs.turns_remaining,
             "actions_taken": list(obs.actions_taken),
         }
+        obs.reward = float(reward.score)
+        obs.done = done
+        obs.metadata = {
+            "info": info,
+            "reward_breakdown": reward.breakdown,
+            "reward_components": reward.model_dump(exclude={"breakdown"}),
+        }
+        return obs
 
-        return obs, reward, done, info
-
+    @property
     def state(self) -> dict:
         """Return the full internal state as a dict."""
         if self._state is None:
@@ -191,7 +204,13 @@ class ISSEnvironment:
         return self._state.model_dump()
 
     # Async wrappers required by openenv web interface
-    async def reset_async(self, episode_id: str | dict | None = None, *args, **kwargs) -> Observation:
+    async def reset_async(
+        self,
+        seed: int | None = None,
+        episode_id: str | dict | None = None,
+        *args,
+        **kwargs,
+    ) -> Observation:
         """Async wrapper for reset.
 
         Accepts either:
@@ -203,20 +222,26 @@ class ISSEnvironment:
         if isinstance(episode_id, dict):
             payload = episode_id
             selected = payload.get("episode_id") or payload.get("task_id") or kwargs.get("episode_id") or kwargs.get("task_id")
-            return self.reset(episode_id=selected or "audit_001")
+            return self.reset(seed=seed, episode_id=selected or "audit_001")
 
         selected = episode_id or kwargs.get("episode_id") or kwargs.get("task_id") or "audit_001"
-        return self.reset(episode_id=selected)
+        return self.reset(seed=seed, episode_id=selected)
 
-    async def step_async(self, action: Action | dict, *args, **kwargs) -> tuple[Observation, Reward, bool, dict]:
+    async def step_async(self, action: Action | dict, *args, **kwargs) -> Observation:
         """Async wrapper for step."""
         if isinstance(action, dict):
             action = Action(**action)
-        return self.step(action)
+        return self.step(action, **kwargs)
 
     async def state_async(self, *args, **kwargs) -> dict:
         """Async wrapper for state."""
-        return self.state()
+        return self.state
+
+    def close(self) -> None:
+        """Release resources for OpenEnv server lifecycle."""
+        self._state = None
+        self._reasoning_accumulator = []
+        self._pending_danger_flags = []
 
     # ------------------------------------------------------------------
     # Helpers

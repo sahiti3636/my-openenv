@@ -6,6 +6,8 @@ from __future__ import annotations
 
 from typing import Literal, Optional
 from pydantic import BaseModel
+from openenv.core.env_server.types import Action as OpenEnvAction
+from openenv.core.env_server.types import Observation as OpenEnvObservation
 
 
 # ---------------------------------------------------------------------------
@@ -53,7 +55,7 @@ class Alert(BaseModel):
 # Observation / Action / Reward models
 # ---------------------------------------------------------------------------
 
-class Observation(BaseModel):
+class Observation(OpenEnvObservation):
     episode_id: str
     episode_type: Literal["audit", "emergency", "investigation"]
     mission_context: str
@@ -67,7 +69,7 @@ class Observation(BaseModel):
     ground_control_available: bool
 
 
-class Action(BaseModel):
+class Action(OpenEnvAction):
     action_type: Literal[
         "inspect_object",
         "flag_non_compliant",
